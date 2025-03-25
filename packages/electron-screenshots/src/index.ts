@@ -11,7 +11,7 @@ import {
 } from 'electron';
 import Events from 'events';
 import fs from 'fs-extra';
-import { Jimp } from 'jimp';
+import Jimp from 'jimp';
 import Event from './event';
 import { Display, getAllDisplays } from './getDisplay';
 import padStart from './padStart';
@@ -113,7 +113,7 @@ export default class Screenshots extends Events {
     let imageHeight = 0;
     // 异步加载图片
     const data = await Promise.all(
-      images.map((image) => Jimp.fromBuffer(image)),
+      images.map((image) => Jimp.read(image)),
     );
       // 创建一个新的图像，宽度是两个图像宽度的和，高度是两个图像高度的最大值
     data.forEach((item) => {
@@ -122,17 +122,18 @@ export default class Screenshots extends Events {
         imageHeight = item.bitmap.height;
       }
     });
-    const newImage = new Jimp({
-      width: imageWidth,
-      height: imageHeight,
-    });
+    // const newImage = new Jimp({
+    //   width: imageWidth,
+    //   height: imageHeight,
+    // });
+    const newImage = new Jimp(imageWidth,imageHeight,0x000000FF);
     let offsetX = 0;
     data.forEach((item) => {
       // 合并图片
       newImage.composite(item, offsetX, 0);
       offsetX += item.bitmap.width;
     });
-    const base64 = await newImage.getBase64('image/png');
+    const base64 = await newImage.getBase64Async('image/png');
 
     return base64;
   }
