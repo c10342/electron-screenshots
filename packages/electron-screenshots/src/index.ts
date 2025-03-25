@@ -1,3 +1,4 @@
+/* eslint-disable class-methods-use-this */
 import debug, { Debugger } from 'debug';
 import {
   BrowserView,
@@ -10,8 +11,9 @@ import {
 } from 'electron';
 import Events from 'events';
 import fs from 'fs-extra';
+import { Jimp } from 'jimp';
 import Event from './event';
-import getDisplay, { Display } from './getDisplay';
+import { Display, getAllDisplays } from './getDisplay';
 import padStart from './padStart';
 import { Bounds, ScreenshotsData } from './preload';
 
@@ -84,13 +86,55 @@ export default class Screenshots extends Events {
   public async startCapture(): Promise<void> {
     this.logger('startCapture');
 
-    const display = getDisplay();
+    // const display = getDisplay();
 
-    const [imageUrl] = await Promise.all([this.capture(display), this.isReady]);
+    // const [imageUrl] = await Promise.all([this.capture(display), this.isReady]);
 
+    // await this.createWindow(display);
+
+    // this.$view.webContents.send('SCREENSHOTS:capture', display, imageUrl);
+    const display = getAllDisplays();
+    const tasks: Array<Promise<Buffer>> = [];
+    display.list.forEach((item) => {
+      tasks.push(this.capture(item));
+    });
+    const res = await Promise.all([...tasks, this.isReady]);
+
+    const images = res.slice(0, res.length - 1) as Buffer[];
+    const imageUrl = await this.mergeImages(images);
     await this.createWindow(display);
 
     this.$view.webContents.send('SCREENSHOTS:capture', display, imageUrl);
+  }
+
+  // 合并截图
+  private async mergeImages(images: Buffer[]) {
+    let imageWidth = 0;
+    let imageHeight = 0;
+    // 异步加载图片
+    const data = await Promise.all(
+      images.map((image) => Jimp.fromBuffer(image)),
+    );
+      // 创建一个新的图像，宽度是两个图像宽度的和，高度是两个图像高度的最大值
+    data.forEach((item) => {
+      imageWidth += item.bitmap.width;
+      if (item.bitmap.height > imageHeight) {
+        imageHeight = item.bitmap.height;
+      }
+    });
+    const newImage = new Jimp({
+      width: imageWidth,
+      height: imageHeight,
+    });
+    let offsetX = 0;
+    data.forEach((item) => {
+      // 合并图片
+      newImage.composite(item, offsetX, 0);
+      offsetX += item.bitmap.width;
+    });
+    const base64 = await newImage.getBase64('image/png');
+
+    return base64;
   }
 
   /**
@@ -147,7 +191,7 @@ export default class Screenshots extends Events {
   /**
    * 初始化窗口
    */
-  private async createWindow(display: Display): Promise<void> {
+  private async createWindow(display: Electron.Rectangle): Promise<void> {
     // 重置截图区域
     await this.reset();
 
@@ -237,7 +281,7 @@ export default class Screenshots extends Events {
     this.$win.show();
   }
 
-  private async capture(display: Display): Promise<string> {
+  private async capture(display: Display): Promise<Buffer> {
     this.logger('SCREENSHOTS:capture');
 
     try {
@@ -268,8 +312,10 @@ export default class Screenshots extends Events {
       }
 
       const image = await monitor.captureImage();
-      const buffer = await image.toPng(true);
-      return `data:image/png;base64,${buffer.toString('base64')}`;
+      const bip = await image.toBmp();
+      return bip;
+      // const buffer = await image.toPng(true);
+      // return `data:image/png;base64,${buffer.toString('base64')}`;
     } catch (err) {
       this.logger('SCREENSHOTS:capture Monitor capture() error %o', err);
 
@@ -303,7 +349,8 @@ export default class Screenshots extends Events {
         throw new Error("Can't find screen source");
       }
 
-      return source.thumbnail.toDataURL();
+      // return source.thumbnail.toDataURL();
+      return source.thumbnail.toBitmap();
     }
   }
 

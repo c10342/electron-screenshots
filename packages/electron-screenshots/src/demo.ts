@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { app, BrowserWindow, globalShortcut } from 'electron';
+import { app, globalShortcut } from 'electron';
 import Screenshots from '.';
 
 app.whenReady().then(() => {
@@ -51,11 +51,11 @@ app.whenReady().then(() => {
     console.log('capture', buffer, bounds);
   });
 
-  const mainWin = new BrowserWindow({
-    show: true,
-  });
-  mainWin.removeMenu();
-  mainWin.loadURL('https://github.com/nashaofu');
+  // const mainWin = new BrowserWindow({
+  //   show: true,
+  // });
+  // mainWin.removeMenu();
+  // mainWin.loadURL('https://github.com/nashaofu');
 });
 
 app.on('window-all-closed', () => {
