@@ -1,8 +1,8 @@
-import { Rectangle, screen } from 'electron';
+import { Rectangle, screen } from "electron";
 
 export interface Display extends Rectangle {
-  id: number
-  scaleFactor: number
+  id: number;
+  scaleFactor: number;
 }
 
 export default (): Display => {
@@ -22,7 +22,11 @@ export default (): Display => {
 
 export const getAllDisplays = () => {
   // 获取所有屏幕的信息
-  const displays = screen.getAllDisplays();
+  let displays = screen.getAllDisplays();
+  if (displays.length > 1) {
+    // 根据x坐标判断屏幕排版方向
+    displays = displays.sort((a, b) => a.bounds.x - b.bounds.x);
+  }
   let width = 0;
   let height = 0;
   let x = 0;
